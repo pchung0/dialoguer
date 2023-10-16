@@ -251,13 +251,25 @@ impl FuzzySelect<'_> {
                 .skip(starting_row)
                 .take(visible_term_rows)
             {
-                render.fuzzy_select_prompt_item(
-                    item,
-                    Some(idx) == sel,
-                    self.highlight_matches,
-                    &matcher,
-                    &search_term,
-                )?;
+                if Some(idx) == sel {
+                    let decolored_item =
+                        String::from_utf8(strip_ansi_escapes::strip(item)).unwrap();
+                    render.fuzzy_select_prompt_item(
+                        &decolored_item,
+                        true,
+                        self.highlight_matches,
+                        &matcher,
+                        &search_term,
+                    )?;
+                } else {
+                    render.fuzzy_select_prompt_item(
+                        item,
+                        false,
+                        self.highlight_matches,
+                        &matcher,
+                        &search_term,
+                    )?;
+                }
             }
             term.flush()?;
 
