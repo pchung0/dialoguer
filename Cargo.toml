@@ -6,7 +6,7 @@ edition = "2021"
 rust-version = "1.63.0"
 authors = [
 	"Armin Ronacher <armin.ronacher@active-4.com>",
-	"Pavan Kumar Sunkara <pavan.sss1991@gmail.com>"
+	"Pavan Kumar Sunkara <pavan.sss1991@gmail.com>",
 ]
 keywords = ["cli", "menu", "prompt"]
 categories = ["command-line-interface"]
@@ -48,6 +48,10 @@ required-features = ["fuzzy-select"]
 
 [[example]]
 name = "history"
+required-features = ["history"]
+
+[[example]]
+name = "history_custom"
 required-features = ["history"]
 
 [[example]]
