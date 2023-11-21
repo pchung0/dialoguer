@@ -252,8 +252,7 @@ impl FuzzySelect<'_> {
                 .take(visible_term_rows)
             {
                 if Some(idx) == sel {
-                    let decolored_item =
-                        String::from_utf8(strip_ansi_escapes::strip(item)).unwrap();
+                    let decolored_item = console::strip_ansi_codes(item);
                     render.fuzzy_select_prompt_item(
                         &decolored_item,
                         true,
