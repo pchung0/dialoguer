@@ -4,6 +4,7 @@ use console::{Key, Term};
 use fuzzy_matcher::FuzzyMatcher;
 
 use crate::{
+    paging::Paging,
     theme::{render::TermThemeRenderer, SimpleTheme, Theme},
     Result,
 };
@@ -198,6 +199,7 @@ impl FuzzySelect<'_> {
         let mut cursor = self.initial_text.chars().count();
         let mut search_term = self.initial_text.to_owned();
 
+        let mut paging = Paging::new(term, self.items.len(), self.max_length);
         let mut render = TermThemeRenderer::new(term, self.theme);
         let mut sel = self.default;
 
@@ -211,15 +213,10 @@ impl FuzzySelect<'_> {
         let matcher = fuzzy_matcher::skim::SkimMatcherV2::default();
 
         // Subtract -2 because we need space to render the prompt.
-        let visible_term_rows = (term.size().0 as usize).max(3) - 2;
-        let visible_term_rows = self
-            .max_length
-            .unwrap_or(visible_term_rows)
-            .min(visible_term_rows);
         // Variable used to determine if we need to scroll through the list.
-        let mut starting_row = 0;
 
         term.hide_cursor()?;
+        paging.update_page(sel.unwrap_or(0));
 
         let mut vim_mode = false;
 
@@ -248,8 +245,8 @@ impl FuzzySelect<'_> {
             for (idx, (item, _)) in filtered_list
                 .iter()
                 .enumerate()
-                .skip(starting_row)
-                .take(visible_term_rows)
+                .skip(paging.current_page * paging.capacity)
+                .take(paging.capacity)
             {
                 if Some(idx) == sel {
                     let decolored_item = console::strip_ansi_codes(item);
@@ -290,12 +287,6 @@ impl FuzzySelect<'_> {
                 (Key::ArrowUp | Key::BackTab, _, _) | (Key::Char('k'), _, true)
                     if !filtered_list.is_empty() =>
                 {
-                    if sel == Some(0) {
-                        starting_row =
-                            filtered_list.len().max(visible_term_rows) - visible_term_rows;
-                    } else if sel == Some(starting_row) {
-                        starting_row -= 1;
-                    }
                     sel = match sel {
                         None => Some(filtered_list.len() - 1),
                         Some(sel) => Some(
@@ -315,11 +306,6 @@ impl FuzzySelect<'_> {
                             Some((sel as u64 + 1).rem(filtered_list.len() as u64) as usize)
                         }
                     };
-                    if sel == Some(visible_term_rows + starting_row) {
-                        starting_row += 1;
-                    } else if sel == Some(0) {
-                        starting_row = 0;
-                    }
                     term.flush()?;
                 }
                 (Key::ArrowLeft, _, _) | (Key::Char('h'), _, true) if cursor > 0 => {
@@ -331,6 +317,16 @@ impl FuzzySelect<'_> {
                 {
                     cursor += 1;
                     term.flush()?;
+                }
+                (Key::Home, _, _) if !filtered_list.is_empty() => {
+                    if paging.active {
+                        sel = Some(paging.previous_page());
+                    }
+                }
+                (Key::End, _, _) if !filtered_list.is_empty() => {
+                    if paging.active {
+                        sel = Some(paging.next_page());
+                    }
                 }
                 (Key::Enter, Some(sel), _) if !filtered_list.is_empty() => {
                     if self.clear {
@@ -363,13 +359,17 @@ impl FuzzySelect<'_> {
                     cursor += 1;
                     term.flush()?;
                     sel = Some(0);
-                    starting_row = 0;
                 }
 
                 _ => {}
             }
-
-            render.clear_preserve_prompt(&size_vec)?;
+            paging.update(sel.unwrap_or(0))?;
+            // render.clear_preserve_prompt(&size_vec)?;
+            if paging.active {
+                render.clear()?;
+            } else {
+                render.clear_preserve_prompt(&size_vec)?;
+            }
         }
     }
 }
